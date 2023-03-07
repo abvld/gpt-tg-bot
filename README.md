@@ -1,10 +1,10 @@
 <h1 align="center">💬 <b>gpt-tg-bot</b> - personal ChatGPT Telegram bot (Telegram API and OpenAI API)</h1>
 
 <p align="center">
-  <img src="https://i.postimg.cc/dt3bNvzM/gpt-tg-bot-1.png" width="800"/>
+  <img src="https://i.postimg.cc/7Y02cBfq/gpt-tg-bot-1-800.png" width="800"/>
 </p>
 
-Run your personal ChatGPT bot for Telegram using the OpenAI API. 
+Run your personal ChatGPT bot for Telegram using the OpenAI API. The bot is using "gpt-3.5-turbo" model.
 
 
 ## ✅ **Features**
@@ -13,7 +13,7 @@ Run your personal ChatGPT bot for Telegram using the OpenAI API.
 **Token usage count**
 
 <p align="center">
-  <img src="https://i.postimg.cc/xTZWWh2X/gpt-tg-bot-2.png" width=800/>
+  <img src="https://i.postimg.cc/GmRy1kyG/gpt-tg-bot-2-800.png" width=800/>
 </p>
 
 The bot extracts token usage statistics from the model's responses, and calculates the total value of the current chat based on the price on the site ($0.002/1K tokens).
@@ -21,7 +21,7 @@ The bot extracts token usage statistics from the model's responses, and calculat
 **Copyable code blocks**
 
 <p align="center">
-  <img src="https://i.postimg.cc/DwbtF6vB/gpt-tg-bot-3.png" width=800/>
+  <img src="https://i.postimg.cc/sgJZfvY8/gpt-tg-bot-3-800.png" width=800/>
 </p>
 
 One-click code copypaste from code blocks.
