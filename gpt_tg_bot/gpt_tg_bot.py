@@ -14,6 +14,8 @@ from telegram.ext import (
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 import logging
 
+from typing import Dict, List, Tuple
+
 
 # Enable logging
 logging.basicConfig(
@@ -31,6 +33,7 @@ TELEGRAM_API_TOKEN = os.environ.get("TELEGRAM_API_TOKEN")
 # Conversation states
 NO_ACTIVE_CHAT, ACTIVE_CHAT = range(2)
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     reply_text = "Welcome to GPT telegram bot. "
@@ -41,20 +44,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         await update.message.reply_text(reply_text, reply_markup=ReplyKeyboardMarkup([["🪙 Token usage", "✋ End chat"]], one_time_keyboard=True))
         return ACTIVE_CHAT
-    
+
     reply_text += (
         "Press the button below to get start a new GPT chat."
     )
     await update.message.reply_text(reply_text,
                                     reply_markup=ReplyKeyboardMarkup([["💬 New Chat"]],
-                                                                        one_time_keyboard=True))
+                                                                     one_time_keyboard=True))
 
     return NO_ACTIVE_CHAT
+
 
 async def new_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     context.user_data["messages"] = []
     context.user_data["total_tokens"] = 0
+    context.user_data["messages_tokens"] = []
 
     context.user_data["messages"].append(
         {"role": "system", "content": "You are a helpful assistant."})
@@ -77,11 +82,35 @@ async def chat_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         {"role": "assistant", "content": gpt_reply})
     context.user_data["total_tokens"] += num_tokens
 
+    # count tokens in this user-assistant pair
+    if not context.user_data["messages_tokens"]:
+        context.user_data["messages_tokens"].append(num_tokens)
+    else:
+        message_tokens = num_tokens - sum(context.user_data["messages_tokens"])
+        context.user_data["messages_tokens"].append(message_tokens)
+
+    # shorten the dialog if it's close to the limit of 4096 tokens
+    messages_s, messages_tokens_s = shorten_msg(
+        context.user_data["messages"], context.user_data["messages_tokens"])
+    
+    context.user_data["messages"] = messages_s
+    context.user_data["messages_tokens"] = messages_tokens_s
+
     gpt_reply_processed = replace_code_block(gpt_reply)
 
     await update.message.reply_text(gpt_reply_processed, reply_markup=ReplyKeyboardMarkup([["🪙 Token usage", "✋ End chat"]], one_time_keyboard=True), parse_mode='HTML')
 
     return ACTIVE_CHAT
+
+
+def shorten_msg(messages: List, messages_tokens: List) -> List:
+
+    while sum(messages_tokens) > 3596:
+        del messages[3:5]
+        del messages_tokens[1]
+
+    return messages, messages_tokens
+
 
 def replace_code_block(message: str) -> str:
 
@@ -91,12 +120,12 @@ def replace_code_block(message: str) -> str:
     for match in matches:
         message = message.replace(match, "```")
 
-    code_block_regex = re.compile(r'```([^`]+)```')    
+    code_block_regex = re.compile(r'```([^`]+)```')
     return code_block_regex.sub(code_md_to_html, html.escape(message))
+
 
 def code_md_to_html(match: re.Match) -> str:
     return f'<code>{match.group(1)}</code>'
-
 
 
 async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -104,12 +133,14 @@ async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         del context.user_data["messages"]
         del context.user_data["total_tokens"]
+        del context.user_data["messages_tokens"]
     except KeyError:
         pass
 
     await update.message.reply_text(
-        "Your chat has been ended. You can start a new chat with the /start command or using the button below.", 
-        reply_markup=ReplyKeyboardMarkup([["💬 New Chat"]], one_time_keyboard=True)
+        "Your chat has been ended. You can start a new chat with the /start command or using the button below.",
+        reply_markup=ReplyKeyboardMarkup(
+            [["💬 New Chat"]], one_time_keyboard=True)
     )
 
     return NO_ACTIVE_CHAT
@@ -132,16 +163,6 @@ def format_token_usage_msg(total_tokens: int) -> str:
     estimated_cost = 0.002 * total_tokens/1000
 
     return f"You have used {total_tokens} tokens in this chat session. The estimated cost is ${estimated_cost:.2f} at $0.002 / 1K tokens."
-
-async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        
-    reply_text = "Your chat has been ended. You can start a new chat with the /start command or using the button below."
-    await update.message.reply_text(reply_text,
-                                    reply_markup=ReplyKeyboardMarkup([["💬 New Chat"]],
-                                                                        one_time_keyboard=True))
-
-    return NO_ACTIVE_CHAT
-
 
 
 def main() -> None:
@@ -176,7 +197,7 @@ def main() -> None:
             ]
         },
         fallbacks=[
-            CommandHandler("end", end)
+            CommandHandler("end", end_chat)
         ],
         name="gpt_chat",
         persistent=True,
